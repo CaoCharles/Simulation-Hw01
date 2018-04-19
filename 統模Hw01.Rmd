@@ -1,0 +1,757 @@
+---
+title: '<font color = "#FF6F00  " size = "8px">Statistical Computing and Simulation</font> <br><font color = "#F1C40F" size = "6px"> Homework 01</font>'
+author: "Charles and Kevin"
+output:
+  html_document:
+    toc: true
+    toc_float: 
+      collapsed: true
+      smooth_scroll: true
+---
+```{r message=FALSE}
+library(dplyr)
+library(kableExtra)
+library(knitr)
+library(nortest)
+library(gridExtra)
+library(grid)
+library(pracma)
+knitr::opts_chunk$set(echo = TRUE)
+options(knitr.table.format = "html")
+```
+
+不使用科學記號
+```{r warning=FALSE}
+options(scipen=999)
+```
+
+# Question 01 
+## (a) The mid-Square Method
+Write a computer program using the Mid-Square Method using 6 digits to
+generate 10,000 random numbers ranging over [0, 999999]. Use the Kolmogorov-Smirnov Goodness-of-fit test to see if the random numbers that you create are uniformly distributed. (Note: You must notify the initial seed number used, and you may adapt 0.05 as the α value. Also, you may find warning messages for conducting the Goodness-of-fit test, and comment on the Goodness-of-fit test. )
+```{r}
+# N 為模擬次數, x 為起始值(亂數決定)#
+set.seed(2)
+x <- floor(runif(1)*10^6)
+N <- 10000
+u <-  matrix(0,N/5,5)
+for(i in 1:N/5){
+  for( j in 1:5){
+    y <-  x^2 %>% as.vector()
+    while(nchar(y) != 12){
+      y <- paste0(0,y)}
+    x <- substr(y,4,9) %>% as.numeric()
+    u[i,j]  <- substr(y,4,9)}}
+kable(u) %>% kable_styling() %>% scroll_box(height = "200px")
+hist(as.numeric(u)/1000000, main = " The mid-square method ",xlab= "Data",breaks = 400)
+P <- ks.test(as.numeric(u)/1000000,'punif')
+P$p.value
+print(ifelse(P$p.value <= 0.05,"Reject H0; This is not an uniform distribution","Do not reject H0; This is an uniform distribution"))
+# P value < alpha = 0.05, reject H0: This is uniform distribution #
+```
+## (b) The combination of 3 multiplicative congruential generators
+Consider the combination of 3 multiplicative congruential generators, i.e.,
+<center><font size = 3>$u_i=\frac{x_i}{30269}+\frac{y_i}{30307}+\frac{z_i}{30323}$(mod 1)</font></center>
+with $x_i$ =171$x_{i-1}$ (mod30269), $y_i$ =172 $y_{i-1}$ (mod30307), $z_i$ =170$z_{i-1}$ (mod30323). Use both the $x^2$ and Kolmogorov-Smirnov Goodness-of-fit tests to check if the
+data are from U(0,1) distribution.
+```{r }
+# N 為模擬次數, (x, y, z) 為任意給定值 #
+N = 10000
+x <- 5; y <- 8; z <- 34
+u <- NULL
+for(i in 1:N){
+  x <- (x * 171 ) %% 30269
+  y <- (y * 172 ) %% 30307
+  z <- (z * 170 ) %% 30323
+  temp <- (x/30269 + y/30307 + z/30323) %% 1
+  u <- c(u, temp)}
+u <- matrix(u,ncol=5)
+kable(u) %>% kable_styling() %>% scroll_box(height = "200px")
+h = hist(u,main='The combination of 3 multiplicative congruential generators',xlab = 'Data')
+# Kolmogorov-Smirnov #
+p1 <- ks.test(u,'punif')
+p1$p.value
+print(ifelse(p1$p.value <= 0.05,"Reject H0; This is not an uniform distribution","Do not reject H0; This is an uniform distribution"))
+# Chisq test #
+p2 <- chisq.test(h$counts,p = rep(1/length(h$counts),length(h$counts)))
+p2$p.value
+print(ifelse(p2$p.value <= 0.05,"Reject H0; This is not an uniform distribution","Do not reject H0; This is an uniform distribution"))
+```
+
+## (c) $U_{n+1} = ($π$ +$U_n)^5$(mod 1)
+The calculators use$U_{n+1}$ = ($π$ +$U_n)^5$(mod 1) to generate random numbers
+between 0 and 1. Compare the result with those in (a) & (b), and discuss your finding based on the comparison.
+```{r warning=FALSE}
+# N 為模擬次數 #
+set.seed(5)
+u0 <- runif(1,0,1)
+N <- 10000
+U <- NULL
+for(i in 1:N){
+  if(i == 1){U[i] <- ((pi+u0)^5) %% 1}
+  else{
+  U[i] <- ((pi+U[i-1])^5) %% 1}}
+U <- matrix(U,ncol=5)
+kable(U) %>% kable_styling() %>% scroll_box(height = "200px")
+h <- hist(U,main = 'Simulation',xlab = 'Data')
+p1 <- ks.test(U,'punif')
+p1$p.value
+print(ifelse(p1$p.value <= 0.05,"Reject H0; This is not an uniform distribution","Do not reject H0; This is an uniform distribution"))
+p2 <- chisq.test(h$counts,p = rep(1/length(h$counts),length(h$counts)))
+p2$p.value
+print(ifelse(round(p2$p.value, digits = 3)<= 0.05,"Reject H0; This is not an uniform distribution","Do not reject H0; This is an uniform distribution"))
+```
+## Result and Discuss
+
+# Question 02
+There are several ways for checking the goodness-of-fit for empirical data. In specific, there are a lot of normality tests available in R. Generate a random sample of size 10, 50, and 100 from N(0,1) and t-distribution (with degrees 10 and 20) in R. You may treat testing random numbers from t-distribution as the power. For a level of significance α = 0.05 test, choose at least four normality tests in R (“nortest” module) to check if this sample is from N(0,1). Tests used can include the Kolmogorov-Smirnov test and the Cramer-von Mises test. Note that you need to compare the differences among the tests you choose.
+
+## 使用的常態檢定 6種
+
+-Kolmogorov-Smirnov test -Anderson-Darling test -Shapiro-Francia test
+
+-Cramer-von Mises test -Lilliefors test -Pearson Chi-Square test
+```{r warning=F}
+pvalue <- function(t1){
+  kp <- ks.test(t1,'pnorm')
+  ap <- ad.test(t1)
+  sp <- sf.test(t1)
+  cp <- cvm.test(t1)
+  lp <- lillie.test(t1)
+  pp <- pearson.test(t1)
+  AA <- matrix(c(kp$p.value,ap$p.value,sp$p.value,cp$p.value,lp$p.value,pp$p.valuw),6,1)
+  return(AA)
+}
+```
+
+## t distribution with df=10
+```{r warning=FALSE}
+# 抽取樣本數，實驗模擬1000次，計算各檢定的型二誤差機率 #
+set.seed(5)
+sample <- c(10,50,100)
+PPP <- NULL
+for(j in 1:3){
+  PPP1 <- NULL
+  for(i in 1:1000){
+    t1 <- rt(sample[j],10)
+    PPP1 <- cbind(PPP1,pvalue(t1))}
+  PPP <- rbind(PPP,PPP1)}
+
+PoWeR_10 <- apply(PPP<0.05,1,sum) /1000
+PoWeR_10 <- matrix(PoWeR_10,3,6,byrow = T)
+colnames(PoWeR_10) <- c("KS.test","AD.test","SF.test","CVM.test","Lillie.test","Pearson.test")
+rownames(PoWeR_10) <- c("n = 10","n = 50","n = 100")
+# 繪圖表格 #
+# 1000次模擬實驗，計算Type 2 error的次數，成功拒絕H0的次數(P value < 0.05 ) #
+kable(PoWeR_10, "html") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F) %>% 
+  add_header_above(c(" Number of sample" = 1, "t distribution with df=10"=6))
+```
+
+## t distribution with df=20
+```{r warning=FALSE}
+# 抽取樣本數，實驗模擬1000次，計算各檢定的型二誤差機率 #
+sample <- c(10,50,100)
+PPP <- NULL
+for(j in 1:3){
+  PPP1 <- NULL
+  for(i in 1:1000){
+    t1 <- rt(sample[j],20)
+    PPP1 <- cbind(PPP1,pvalue(t1))}
+  PPP <- rbind(PPP,PPP1)}
+
+PoWeR_20 <- apply(PPP<0.05,1,sum)/1000
+PoWeR_20 <- matrix(PoWeR_20,3,6,byrow = T)
+colnames(PoWeR_20) <- c("KS.test","AD.test","SF.test","CVM.test","Lillie.test","Pearson.test")
+rownames(PoWeR_20) <- c("n = 10","n = 50","n = 100")
+# 繪圖表格 #
+# 1000次模擬實驗，計算在不同樣本下，各個test的的次數，成功拒絕H0的次數(P value < 0.05 ) #
+kable(PoWeR_20, "html") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F) %>% 
+  add_header_above(c(" Number of sample" = 1, "t distribution with df=20"=6))
+```
+
+## Normal(0,1) 
+```{r warning=FALSE}
+# 抽取樣本數，實驗模擬1000次，計算各檢定的型二誤差機率 #
+sample <- c(10,50,100)
+PPP <- NULL
+for(j in 1:3){
+  PPP1 <- NULL
+  for(i in 1:1000){
+    t1 <- rnorm(sample[j],0,1)
+    PPP1 <- cbind(PPP1,pvalue(t1))}
+  PPP <- rbind(PPP,PPP1)}
+
+PoWeR_30 <- apply(PPP<0.05,1,sum)/1000
+PoWeR_30 <- matrix(PoWeR_30,3,6,byrow = T)
+colnames(PoWeR_30) <- c("KS.test","AD.test","SF.test","CVM.test","Lillie.test","Pearson.test")
+rownames(PoWeR_30) <- c("n = 10","n = 50","n = 100")
+# 繪圖表格 #
+# 1000次模擬實驗，計算Type 2 error的次數，成功拒絕H0的次數(P value < 0.05 ) #
+kable(PoWeR_30, "html") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F) %>% 
+  add_header_above(c(" Number of sample" = 1, "Normal (0,1)"=6))
+```
+
+# Question 03
+Write your own R programs to perform Gap test, Permutation test, and run test. Then use this program to test if the uniform random numbers generated from Minitab (or SAS, SPSS, Excel) and R are independent.
+
+<center>H0: This is an independent data.</center>
+<center>H1: This is not an independent data.</center>
+
+## 從Ｒ及Excel的Uniform (0,1)生成10000萬筆隨機資料
+```{r}
+# R
+set.seed(4)
+x <- runif(10000,0,1)
+s <- matrix(x,ncol = 5)
+kable(s) %>% kable_styling() %>% scroll_box(height = "200px")
+hist(x,breaks =10,main = 'Data from R',xlab = "Data")
+# Excel 
+y <- read.csv('/Users/kevinpiger/Desktop/碩一下/統模/Homework01/excelrandom.csv') %>% as.vector()
+y <- y$x %>% as.vector()
+s <- matrix(y,ncol=5)
+kable(s) %>% kable_styling() %>% scroll_box(height = "200px")
+hist(y,breaks = 10,main = 'Data from EXCEL',xlab = "Data")
+```
+
+## Run test
+function: run(w,c),w為資料，須介於0,1之間，c為顯著水準；以0.5作為分界點，大於0.5定義為S成功，小於等於0.5定義為F失敗，$n_1$為S的數量，$n_2$為F的數量，Runs為總Run的個數，當$n_1$ > 10且 $n_2$>10時，Runs為近似常態分配N($\frac{2n_1n_2}{n_1+n_2}+1$,$\frac{2n_1n_2 (2n_1n_2-n_1-n_2)}{((n_1+n_2 )^2 (n_1+n_2-1)}$)
+Rejection region:{ $|Z_0| ≥ |Z_{α/2}|$ }，$Z_0$為Runs標準化的檢定統計量，α=0.05。($n_2$以總個數length(rx)減去n1的個數表示)
+function: run(w,c); w為欲檢定資料, c為顯著水準。
+```{r}
+run =  function(w,c){
+  rx <- w
+  rx[rx > 0.5] = "S"
+  rx[rx <= 0.5] = "F"
+  # 總ＲＵＮ數 #
+  RUNS <- sum(rx[-1] != rx[-(length(rx))]) + 1
+  # test #
+  n1 <- sum(rx == "S")
+  muR <- (2 * n1 *(length(rx)- n1))/ length(rx) + 1
+  sigma_R <- 2 * n1 *(length(rx)- n1) *( 2*n1*(length(rx) - n1) - length(rx))/(length(rx)^2 * (length(rx) -1))
+  z2 <-( RUNS - muR ) / sqrt(sigma_R)
+  return(print(ifelse(abs(z2) >= qnorm(1-c/2,0,1), paste("Z = ",round(abs(z2),digits = 3),' >= ',qnorm(1-c/2,0,1),"Reject Ho "),paste("Z= ",round(abs(z2),digits = 3),' < ',qnorm(1-c/2,0,1),"Do not reject Ho "))))}
+# 第一個位置請放資料(vector),第二個位置放顯著水準 #
+run(x,0.05)
+run(y,0.05)
+```
+
+## Gap test
+function: gap(w,c,d1,d2); w為欲檢定資料, c為顯著水準, 選取介於 0, 1間的兩個數0< d1 < d2 < 1，alpha為d1值, beta為d2值
+考慮介於α與β間的亂數，介於α與β間的亂數為 1其餘為 0，間隔應與幾何分配有關，間隔個數P(K = k) = (β − α)×(1−(β −α ))k , k = 0,1,...
+最後在代入卡方檢定
+```{r warning= FALSE}
+gap <- function(w,c,d1,d2){
+sample <- w
+alpha <- min(d1); beta <- max(d2)
+fgap <- (sample <= beta & alpha <= sample)*1
+fgap_p <- which(fgap == 1)
+tmp <- fgap_p[-1]-fgap_p[-length(fgap_p)] - 1
+tmp1 <- tmp %>% table() %>% as.data.frame();tmp1
+names(tmp1) <- c('Gap','Freq')
+p <- chisq.test(as.integer(tmp1$Freq), p =  dgeom(as.integer(tmp1$Gap),prob = beta - alpha),rescale.p = T)
+return(print(ifelse(p$p.value >= c,paste("p_value",round(p$p.value,digits = 3),' > ',c,"Do not reject H0"),paste("p_value",round(p$p.value,digits = 3),'<=',c, 'Reject H0'))))}
+
+# 第一個位置請放資料(vector),第二個位置放顯著水準 #
+gap(x,0.05,0.2,0.8)
+gap(y,0.05,0.2,0.8)
+```
+
+## Permutation test
+function: Permutation.test(w,c); W為欲檢定資料, c為顯著水準。
+```{r}
+permutation.test <- function(W,c){
+  W <- matrix(W , nrow = 4 ,byrow = F )
+  W1 <- apply(W , 2 , rank)
+  W2 <- W1[1,]*1000+W1[2,]*100+W1[3,]*10+W1[4,];W2
+  p <- chisq.test(table(W2))
+  return(print(ifelse(p$p.value >= c,paste("p_value",p$p.value,'>',c,"Do not reject H0"),
+                      paste("p_value",p$p.value,'<=',c, 'Reject H0'))))
+}
+
+permutation.test(x,0.05)
+permutation.test(y,0.05)
+```
+
+## Conclusion Both data of R and Excel are random.
+# Question 04
+## (a) 
+$\sum\limits_{i=1}^{12}U_i-6$ can be used to approximate N(0,1) distribution, where $U_i$'s are
+random sample from U(0,1).
+Based on α = 0.05, compare the results of the Chi-square test and the Kolmogorov-Smirnov test, and see if there are any differences.
+<center>H0: This is an approximate N(0,1) distribution.</center>
+<center>H1: This is not an approximate N(0,1) distribution.</center>
+```{r warning=FALSE}
+# 抽10000組 x, 每組都是12個U抽自U(0,1),去形成1000個近似常態資料樣本 #
+# 再用ks test 以及 chisq test去檢測是否近似常態資料, alpha =0.05 #
+N <- 10000
+x <- NULL
+for(i in 1:N){
+  x[i] <- runif(12) %>% sum() - 6}
+# 繪製長條圖 #
+h <- hist(x,main = "Simulation of x", xlab = 'Data')
+# ks test #
+p1 <- ks.test(x,"pnorm")
+print(ifelse(p1$p.value >= 0.05,paste('p value =',round(p1$p.value,digits = 3),"> 0.05","Do not reject H0."),paste('p value =',round(p1$p.value,digits = 3),"<= 0.05","Reject H0.")))
+
+# Chisq test #
+p2 <- chisq.test(h$counts,dnorm(h$counts))
+print(ifelse(p2$p.value >= 0.05,paste('p value =',round(p2$p.value,digits = 3),"> 0.05","Do not reject H0."),paste('p value =',round(p2$p.value,digits = 3),"<= 0.05","Reject H0.")))
+```
+Conclusion: ks.test以及Chisq.test都不拒絕H0。
+
+```{r}
+#4-b
+#Design two tests of independence (which are not the same as you saw in class) and apply them on the random sample that you generate.
+#(1) idea by Lin, YC
+y <- rank(x)
+plot(1:N,y,ylab = "Rank",xlab = 'Oeder of x')
+abline(v = 5000,col = 'red')
+abline(h = 5000,col = 'red')
+r1 <- length(which(y[1:5000]<5000))
+r2 <- length(which(y[1:5000]>=5000))
+r3 <- length(which(y[5001:10000]<5000))
+r4 <- length(which(y[5001:10000]>=5000))
+R <- c(r1,r2,r3,r4)
+R0 <-sum((R-2500)^2/2500)
+ifelse(R0 >= qchisq(0.95,3),paste('chisq value',R0,'>=', qchisq(0.95,3),'Reject H0'),paste('chisq value',R0,'<', qchisq(0.95,3),"Do not reject H0"))
+
+#(2) rank + run.test
+y <- y / 10000
+run(y,0.05)
+```
+
+# Question 05
+Use the bisection, false positions, and secant methods to find the roots, and
+check your answers with the functions in R.
+You need to specify the starting points, convergence criterion, and number of iterations.
+
+the question of (a) is $f(x)=e-\frac{1}{3.5+x}$
+
+the question of (b) is $f(x)=\frac{e^x}{\sqrt{1+x^2}}-0.5$
+
+the question of (c) is the eigenvalue of matrix A 
+$\begin{bmatrix}
+2&3&4\\
+3&4&5\\
+4&5&6 
+\end{bmatrix}$</font>
+
+## Method
+### Bisection Method
+```{r setup = FALSE}
+bisection.method<-function(f,a,b){
+fa <- f(a) ; fb <- f(b)
+c <- (a+b)/2 ; fc <- f(c)
+na=c();nb=c();nc=c();nfa=c();nfb=c();nfc=c()
+if((fa*fb)>0){
+  print("Wrong Input")
+}
+i <- 0
+W1 <- c(a,b,fa,fb,c,fc)
+while (abs(b-a) > 0.00001){
+  i<-i+1
+  fa <- f(a) ; fb <- f(b) ; fc <- f(c)
+  if((fa*fc)<0){ 
+    a = a ; fa = fa
+    b = c ; fb = fc
+    na = c(na,a) ; nb = c(nb,b)
+    nfa = c(nfa,fa) ; nfb = c(nfb,fb)
+  }
+  else{ 
+    a = c ; fa = fc
+    b = b ; fb = fb
+    na = c(na,a) ; nb = c(nb,b) ; nfa = c(nfa,fa) ; nfb = c(nfb,fb)
+  }
+  c = (a+b)/2 ; fc <- f(c)
+  nc = c(nc,c) ; nfc = c(nfc,fc)
+}
+W2 <- c(na,nb,nfa,nfb,nc,nfc)
+W2 <- matrix(data = W2,ncol = 6,byrow = F)
+W2 <- rbind(W1,W2)
+W <- data.frame("a"=W2[,1],"b"=W2[,2],"func.a"=W2[,3],"func.b"=W2[,4],"c"=W2[,5],"func.c"=W2[,6])
+b=b
+print('covegence criterion : |b-a|<1e-6')
+print(paste('number of iterations : ',i))
+print(paste('approximation root :', b))
+print(knitr::kable(W,"rst",digits = 7))
+kable(W,"html") %>% kable_styling(bootstrap_options = "striped", full_width = F) %>% add_header_above(c(" Bisection Method" = 6))%>% kable_styling() %>% scroll_box(height = "200px")
+}
+```
+### False Position Method
+```{r setup = FALSE}
+false.position.method <- function(f,a,b){
+fa <- f(a) ; fb <- f(b)
+c <- a-(fa*(b-a)/(fb-fa)) ; fc <- f(c)
+e=abs(c-b)
+na=c();nb=c();nc=c();ni=c();nfa=c();nfb=c();nfc=c()
+if((fa*fb)>0){
+  print("Wrong Input")
+}
+i=0
+W1<-c(a,b,c,fa,fb,fc)
+while(e>0.00001){
+  i <- i+1
+  fa <- f(a) ; fb <- f(b)
+  c <- b-(fb*(b-a)/(fb-fa)) ;  fc <- f(c)
+  if(sign(fc) == sign(fa)){
+    e <- abs(c-a)
+    a <- c ; fa <- fc
+    b <- b ; fb <- fb
+    na = c(na,a) ; nb = c(nb,b)
+    nfa=c(nfa,fa) ; nfb = c(nfb,fb)
+  }
+  else{
+    e <- abs(c-b)
+    a <- a ; fa <- fa
+    b <- c ; fb <- fc
+    na = c(na,a) ; nb = c(nb,b)
+    nfa = c(nfa,fa) ; nfb = c(nfb,fb)
+  }
+  nfc = c(nfc,fc) ; nc = c(nc,c)
+}
+W2<-c(na,nb,nc,nfa,nfb,nfc)
+W2<-matrix(data=c(na,nb,nc,nfa,nfb,nfc),ncol=6,byrow = F)
+W<-rbind(W1,W2)
+W<-data.frame("a"=W2[,1],"b"=W2[,2],"c"=W2[,3],"func.a"=W2[,4],"func.b"=W2[,5],"func.c"=W2[,6])
+b=b
+print('covegence criterion : |Cn-Cn-1|<1e-5')
+print(paste('number of iterations : ',i))
+print(paste('approximation root :', c))
+print(knitr::kable(W,"rst",digits = 7))
+kable(W,"html") %>% kable_styling(bootstrap_options = "striped", full_width = F) %>% add_header_above(c(" False Position Method" = 6))%>% kable_styling() %>% scroll_box(height = "200px")
+}
+```
+### Secant Method
+```{r setup = FALSE}
+secant.method<-function(f,a,b){
+  fa <- f(a) ; fb <- f(b)
+  c <- b-((b-a)/(fb-fa))*fb;fc <- f(c)
+  d = abs(b-a)
+  W1 <- c(a,b,fa,fb,c,fc)
+  na=c();nb=c();nc=c();nfa=c();nfb=c();nfc=c()
+  i=0
+  while(d>0.000001){
+    i <- i+1
+    fa <- f(a)
+    fb <- f(b)
+    na = c(na,a) ;  nb = c(nb,b) ; nfa = c(nfa,fa); nfb = c(nfb,fb)
+    c <- b-((b-a)/(fb-fa))*fb
+    a = b ; b = c
+    c2 <- b-((b-a)/(fb-fa))*fb
+    nc = c(nc,c2) ; fc <- f(c2) ; nfc = c(nfc,fc)
+    d = abs(b-a)
+  }
+  W2 <- c(na,nb,nc,nfa,nfb,nfc)
+  W2 <- matrix(data=c(na,nb,nc,nfa,nfb,nfc),ncol=6,byrow = F)
+  W2 <- rbind(W1,W2)
+  W <- data.frame("a"=W2[,1],"b"=W2[,2],"c"=W2[,3],"func.a"=W2[,4],"func.b"=W2[,5],"func.c"=W2[,6])
+  b = b
+  print('covegence criterion : |Cn-Cn-1|<1e-5')
+  print(paste('number of iterations : ',i))
+  print(paste('approximation root :', b))
+  print(knitr::kable(W,"rst",digits = 7))
+  kable(W,"html") %>% kable_styling(bootstrap_options = "striped", full_width = F) %>% add_header_above(c(" Secant Method" = 6))%>% kable_styling() %>% scroll_box(height = "200px")
+}
+```
+## Solve problem
+### (a)
+<tr><b>The question of (a)  </b></tr>
+<font size="4px"><center>$f(x)=e-\frac{1}{3.5+x}$</center></font>
+```{r}
+f <- function(x){
+  return(exp(1)-(1/(3.5+x)))
+}
+```
+```{r}
+curve(f,xlim = c(-5,0))
+abline(h=0)
+```
+<br><center>當$x=-3.5$，其函數值不存在</center></br>
+<br><center>當$x<-3.5$，其函數值皆為正</center></br>
+<br><center>我們選取?$a=-3.2 ,b=-3$作為起始點</center></br>
+#### R_uniroot
+```{r}
+# We choose start point a=-3.2 b=-3.0
+uniroot(f,c(-3.2,-3))
+```
+#### Bisection Method
+```{r}
+# We choose start point a=-3.2 b=-3.0
+bisection.method(f,-3.2,-3)
+```
+#### False Position Method
+```{r}
+# We choose start point a=-3.2 b=-3.0
+false.position.method(f,-3.2,-3)
+```
+#### Secant Method
+```{r}
+# We choose start point a=-3.2 b=-3.0
+secant.method(f,-3.2,-3)
+```
+Conclusion 
+
+### (b)
+<tr><b>The question of (b)</b></tr>
+<font size="4px"><center> ${f(x)=\frac{e^x}{\sqrt{1+x^2}}-0.5}$ </center></font>
+```{r}
+f<-function(x){
+  return((exp(-x))/sqrt(1+x^2)-0.5)
+}
+```
+```{r}
+curve(f,xlim = c(-0,1))
+abline(h=0)
+```
+<br><center>由圖形觀察出其根介於(0,1)之間/center></br>
+<br><center>我們選取?$a=0 ,b=1$作為起始點</center></br>
+
+#### R_uniroot
+```{r}
+# We choose start point a=0 b=1
+uniroot(f,c(0,1))
+```
+#### Bisection Method
+```{r}
+# We choose start point a=0 b=1
+bisection.method(f,0,1)
+```
+#### False Position Method
+```{r}
+# We choose start point a=0 b=1
+false.position.method(f,0,1)
+```
+#### Secant Method
+```{r}
+# We choose start point a=0 b=1
+secant.method(f,0,1)
+```
+Conclusion 
+
+### (c)
+<tr><b>The question of (c)  </b></tr>
+<font size="4px"><center>the eigenvalue of A=$\begin{bmatrix}
+2&3&4\\
+3&4&5\\
+4&5&6 
+\end{bmatrix}$</center></font>
+```{r}
+A<-c(2,3,4,3,4,5,4,5,6)
+A<-matrix(A,ncol=3,byrow=T)
+eigen(A)
+f <- function(x){
+  return((2-x)*(4-x)*(6-x)+3*5*4+4*3*5-(2-x)*5*5-4*(4-x)*4-3*3*(6-x))
+}
+f(0)
+```
+```{r}
+curve(f,xlim = c(-5,15))
+abline(h=0)
+```
+<br><center>因為函數為三次式，我們將圖形更進一步分割</center></br>
+```{r}
+curve(f,xlim = c(-1,1))
+abline(h=0)
+```
+
+```{r}
+curve(f,xlim = c(12,13))
+abline(h=0)
+```
+<br><center>我們選取三組起始點來計算三根?</center></br>
+<br><center>$a=-1 ,b=-0.2$作為第一組</center></br>
+<br><center>$a=-0.2,b=1$作為第二組</center></br>
+<br><center>$a=12 ,b=13$作為第三組</center></br>
+
+#### R_uniroot
+```{r}
+#第一組
+# We choose start point a=-1 b=-0.2
+uniroot(f,c(-1,-0.2))
+```
+```{r}
+#第二組
+# We choose start point a=-0.2 b=1
+uniroot(f,c(-0.2,1))
+```
+```{r}
+#第三組
+# We choose start point a=12 b=13
+uniroot(f,c(12,13))
+```
+#### Bisection Method
+##### 第一組(-1,-0.2)
+```{r}
+bisection.method(f,-1,-0.2)
+```
+##### 第二組(-0.2,0)
+```{r}
+bisection.method(f,-0.2,1)
+```
+##### 第三組(12,13)
+```{r}
+bisection.method(f,12,13)
+```
+#### False Position Method 
+##### 第一組(-1,-0.2)
+```{r}
+# We choose start point a=-1 b=-0.2
+false.position.method(f,-1,-0.2)
+```
+##### 第二組(-0.2,1)
+```{r}
+# We choose start point a=-0.2 b=-1
+false.position.method(f,-0.2,-1)
+```
+##### 第三組(12,13)
+```{r}
+# We choose start point a=12 b=12
+false.position.method(f,12,13)
+```
+#### Secant Method
+##### 第一組(-1,-0.2)
+```{r}
+# We choose start point a=-1 b=-0.2
+secant.method(f,-1,-0.2)
+```
+##### 第二組(-0.2,0)
+```{r}
+# We choose start point a=-0.2 b=1
+secant.method(f,-0.2,1)
+```
+##### 第三組(12,13)
+```{r}
+# We choose start point a=12 b=13
+secant.method(f,12,13)
+```
+Conclusion 
+
+# Question 06
+Consider a multinomial observation X =($x_1,x_2,x_3,x_4$)with class probabilities given by ($p_1,p_2,p_3,p_4$)=($\frac{2+θ}{4}$,$\frac{1-θ}{4}$,$\frac{1-θ}{4}$,$\frac{θ}{4}$), where 0<$\theta$ <1. The sample
+size is n= $\sum{x_i}$ and the parameter $\theta$ is to be estimated from the observedfrequencies (1997, 906, 904, 32), i.e., sample size 3839. Use the secant, Ridder’s (or Brent’s), and Newton-Raphosn methods to find the MLE (via l'($\theta$)). Youmay choose your own starting points and convergence criterion (preferred $10^{-6}$ or smaller)
+
+## Define f.o.c likelihood function
+```{r}
+f = function(x){(1997/(2+x)-1810/(1-x)+32/x)/4}
+```
+
+```{r}
+curve(f,xlim = c(0,0.1))
+abline(h=0, col = "red")
+```
+
+## Newton-Raphosn Method
+```{r warning = FALSE}
+#Newton
+Newton <- function(f,S,tol){
+i=1
+N_table <- matrix(c(0,S,f(S)),1,3)
+colnames(N_table) <- c('Iterative','x','f(x)')
+tr = tol
+while(tr>=tol){
+  ss <- N_table[i,2] - f(N_table[i,2])/grad(f,N_table[i,2])
+  tr <- abs(ss-N_table[i,2])
+  i = i+1
+  N_table <- rbind(N_table,c(i-1,ss,f(ss)))
+}
+  print("Newton's Method ")
+  print('covegence criterion : tolerence <1e-6')
+  print(paste('number of iterations : ',i))
+  print(paste('approximation root :', ss))
+  print(knitr::kable(N_table,"rst",digits = 7))
+  kable(N_table, "html") %>% kable_styling(bootstrap_options = "striped", full_width = F) %>% add_header_above(c("Newton-Raphosn Method"= 3 ))
+}
+```
+## Ridder method by our hand
+```{r}
+#Ridders method function
+ridders.method<-function(f,a,b){
+  fa <- f(a) ; fb <- f(b) ; 
+  c <- (a+b)/2 ; fc <- f(c)
+  e_Q <- (fc+sign(fb)*(fc^2-fa*fb)^(1/2)/fb)
+  d <- c-(c-a)*sign(fa-fb)*(fc/(fc^2-fa*fb)^(1/2))
+  fd <- f(d)
+  na=c();nb=c();nd=c();nfa=c();nfb=c();nfd=c()
+  if((fa*fb)>0){
+    print("Wrong Input")
+  }
+  i <- 0
+  W1 <- c(a,b,fa,fb,d,fd)
+  while (abs(b-a) > 0.000001){
+    i<-i+1
+    fa <- f(a) ; fb <- f(b) ; fd <- f(d)
+    
+    if((fa*fd)<0){ 
+      a = a ; fa = fa
+      b = d ; fb = fd
+      na = c(na,a) ; nb = c(nb,b)
+      nfa = c(nfa,fa) ; nfb = c(nfb,fb)
+    }
+    else{ 
+      a = d ; fa = fd
+      b = b ; fb = fb
+      na = c(na,a) ; nb = c(nb,b) ; nfa = c(nfa,fa) ; nfb = c(nfb,fb)
+    }
+    c = (a+b)/2 ; fc <- f(c)
+    d <- c-(c-a)*sign(fa-fb)*(fc/(fc^2-fa*fb)^(1/2)) ; fd <- f(d)
+    nd = c(nd,d) ; nfd = c(nfd,fd)
+  }
+  W2 <- c(na,nb,nfa,nfb,nd,nfd)
+  W2 <- matrix(data = W2,ncol = 6,byrow = F)
+  W2 <- rbind(W1,W2)
+  W <- data.frame("a"=W2[,1],"b"=W2[,2],"func.a"=W2[,3],"func.b"=W2[,4],"d"=W2[,5],"func.d"=W2[,6])
+  d=b
+  print("Ridder's Method ")
+  print('covegence criterion : |b-a|<1e-6')
+  print(paste('number of iterations : ',i))
+  print(paste('approximation root :', d))
+  print(knitr::kable(W,"rst",digits = 7))
+  kable(W,"html") %>% kable_styling(bootstrap_options = "striped", full_width = F) %>% add_header_above(c(" Ridder Method" = 6))
+}
+ridders.method(f,0.02,0.05)
+```
+## Uniroot by R
+```{r}
+# uniroot
+uniroot(f,c(0.02,0.05),tol = 10^(-6))
+```
+## Newton
+```{r}
+Newton(f,0.05, tol = 0.000001)
+```
+
+
+## Ridder method by R
+```{r}
+# ridder
+ridders(f,0.02,0.05)
+```
+## Secant.method
+```{r}
+# Secant
+secant.method(f,0.02,0.05)
+```
+
+## Bisection
+```{r}
+# Bisection
+bisection.method(f,0.02,0.05)
+```
+
+## false position 
+```{r}
+# false position 
+false.position.method(f,0.02,0.05)
+```
+
+## 判斷是否為極大值
+```{r}
+# s.o.c
+grad(f,0.0357123) < 0
+
+```
+
+<center><font color="red" size="10px"><b>Do you ever shine?</b></font></center>
